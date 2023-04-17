@@ -5,6 +5,12 @@ import datetime
 from .models import * 
 from .utils import cookieCart, cartData, guestOrder
 
+
+from django.http import HttpResponse
+from django.middleware import csrf
+from django.http import HttpResponseRedirect
+import requests
+
 def store(request):
 	data = cartData(request)
 
@@ -62,9 +68,87 @@ def updateItem(request):
 
 	return JsonResponse('Item was added', safe=False)
 
+def make_post_request_to_khalti(request):
+	if request.method == "POST":
+		name = request.POST.get("name")
+		email = request.POST.get("email")
+		phone = request.POST.get("phone")
+
+		data=cartData(request)
+
+		product_details = [{"identity": str(item['product']['id']), "name": item['product']['name'], "total_price": item['get_total']*100, "quantity": item['quantity'], "unit_price": item['product']['price']*100} for item in data['items']]
+
+		print("product_details:", product_details)
+
+		amount = data['order']['get_cart_total'] 
+		amount = (amount // 1) * 100
+		print(amount)
+		csrf_token = csrf.get_token(request)
+
+		url = 'https://a.khalti.com/api/v2/epayment/initiate/'
+		payload = {
+		"return_url": "http://127.0.0.1:8000/process_order/",
+		"website_url": "http://127.0.0.1:8000/",
+		"amount": amount + amount * .13,
+		"purchase_order_id": "test12",
+		"purchase_order_name": "test",
+		"customer_info": {
+			"name": name,
+			"email": email,
+			"phone": phone,
+		},
+		"amount_breakdown": [
+			{
+				"label": "Mark Price",
+				"amount": amount
+			},
+			{
+				"label": "VAT",
+				"amount": amount * .13
+			}
+		],
+		"product_details": product_details
+		}
+
+		headers = {
+			'Content-Type': 'application/json',
+			"Authorization": "key 84a068d414ff4a189e1dbae85a09c9a3",
+			'X-CSRFToken': csrf_token,  
+		}
+
+		response = requests.post(url, json=payload, headers=headers)
+		print(response)
+		payment_url = response.json()['payment_url']
+		
+		return HttpResponseRedirect(payment_url)
+
+	return HttpResponse("Payment Failed")
+
+def payment_success_callback(request):
+	
+	pidx = request.GET.get('pidx')
+	amount = request.GET.get('amount')
+	mobile = request.GET.get('mobile')
+	purchase_order_id = request.GET.get('purchase_order_id')
+	purchase_order_name = request.GET.get('purchase_order_name')
+	transaction_id = request.GET.get('transaction_id')
+	context={
+	'pidx': pidx,
+	'amount': amount,
+	'mobile': mobile,
+	'purchase_order_id': purchase_order_id,
+	'purchase_order_name': purchase_order_name,
+	'transaction_id': transaction_id,
+	}
+
+	return render(request, 'store/payment.html', context)
+	
+
 def processOrder(request):
 	transaction_id = datetime.datetime.now().timestamp()
 	data = json.loads(request.body)
+
+	print(data)
 
 	if request.user.is_authenticated:
 		customer = request.user.customer
@@ -89,4 +173,6 @@ def processOrder(request):
 		zipcode=data['shipping']['zipcode'],
 		)
 
-	return JsonResponse('Payment submitted..', safe=False)
+	return JsonResponse('Payment completed..', safe=False)
+
+

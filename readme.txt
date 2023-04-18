@@ -8,10 +8,10 @@ In order to run the code:
 
 
 Important Note:
-This project serves only as a demonstration of how to integrate Khalti payment, and therefore, 
-it does not include any login or logout functionalities. Additionally, please do not attempt to
-login as an admin while making a payment, as the login functionality has not yet been implemented. 
-The project only showcases how to add items to a cart and complete a payment.
+This project serves only as a demonstration of how to integrate Khalti payment, and therefore,it does not include any login 
+or logout functionalities. Additionally, please do not attempt to login as an admin while making a payment, it will generate
+this error 'OrderItem' object is not subscriptable' since the login functionality has not yet been implemented.The project only
+showcases how to add items to a cart and complete a payment.
 
 admin credentials:
 username=aman

@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from django.middleware import csrf
 from django.http import HttpResponseRedirect
 import requests
+import urllib
 
 def store(request):
 	data = cartData(request)
@@ -73,29 +74,53 @@ def make_post_request_to_khalti(request):
 		name = request.POST.get("name")
 		email = request.POST.get("email")
 		phone = request.POST.get("phone")
-
+		total = request.POST.get('total')
+		address = request.POST.get("address")
+		city = request.POST.get("city")
+		state = request.POST.get("state")
+		zipcode = request.POST.get("zipcode")
+		country = request.POST.get("country")
+		if(not(address and city and city and state and zipcode and country)):
+			return_url = "http://127.0.0.1:8000/process_order/?name={}&email={}&phone={}&total={}".format(
+				urllib.parse.quote(name), 
+				urllib.parse.quote(email), 
+				urllib.parse.quote(phone),
+				urllib.parse.quote(total)
+			)
+		else:
+			return_url = "http://127.0.0.1:8000/process_order/?name={}&email={}&phone={}&total={}&address={}&city={}&state={}&zipcode={}&country={}".format(
+				urllib.parse.quote(name), 
+				urllib.parse.quote(email), 
+				urllib.parse.quote(phone),
+				urllib.parse.quote(total),
+				urllib.parse.quote(address), 
+				urllib.parse.quote(city), 
+				urllib.parse.quote(state), 
+				urllib.parse.quote(zipcode), 
+				urllib.parse.quote(country),
+			)	
+	
 		data=cartData(request)
+		product_details = [{"identity": str(item['product']['id']), "name": item['product']['name'], "total_price": (item['get_total']//1)*100, "quantity": item['quantity'], "unit_price": (item['product']['price']//1)*100} for item in data['items']]
 
-		product_details = [{"identity": str(item['product']['id']), "name": item['product']['name'], "total_price": item['get_total']*100, "quantity": item['quantity'], "unit_price": item['product']['price']*100} for item in data['items']]
-
+		
 		print("product_details:", product_details)
 
 		amount = data['order']['get_cart_total'] 
 		amount = (amount // 1) * 100
-		print(amount)
 		csrf_token = csrf.get_token(request)
 
 		url = 'https://a.khalti.com/api/v2/epayment/initiate/'
 		payload = {
-		"return_url": "http://127.0.0.1:8000/process_order/",
+		"return_url": return_url,
 		"website_url": "http://127.0.0.1:8000/",
 		"amount": amount + amount * .13,
 		"purchase_order_id": "test12",
 		"purchase_order_name": "test",
-		"customer_info": {
+		"customer_info":{
 			"name": name,
-			"email": email,
-			"phone": phone,
+			"email":email,
+			"phone":phone,
 		},
 		"amount_breakdown": [
 			{
@@ -117,62 +142,68 @@ def make_post_request_to_khalti(request):
 		}
 
 		response = requests.post(url, json=payload, headers=headers)
-		print(response)
 		payment_url = response.json()['payment_url']
 		
 		return HttpResponseRedirect(payment_url)
 
 	return HttpResponse("Payment Failed")
 
-def payment_success_callback(request):
-	
-	pidx = request.GET.get('pidx')
-	amount = request.GET.get('amount')
-	mobile = request.GET.get('mobile')
-	purchase_order_id = request.GET.get('purchase_order_id')
-	purchase_order_name = request.GET.get('purchase_order_name')
-	transaction_id = request.GET.get('transaction_id')
-	context={
-	'pidx': pidx,
-	'amount': amount,
-	'mobile': mobile,
-	'purchase_order_id': purchase_order_id,
-	'purchase_order_name': purchase_order_name,
-	'transaction_id': transaction_id,
-	}
-
-	return render(request, 'store/payment.html', context)
 	
 
 def processOrder(request):
-	transaction_id = datetime.datetime.now().timestamp()
-	data = json.loads(request.body)
+	print("here")
+	name = request.GET.get('name')
+	email = request.GET.get('email')
+	phone = request.GET.get('phone')
+	address = request.GET.get('address')
+	city = request.GET.get('city')
+	state = request.GET.get('state')
+	zipcode = request.GET.get('zipcode')
+	country = request.GET.get('country')
+	total = float(request.GET.get('total'))
+	transaction_id = request.GET.get('transaction_id')
 
-	print(data)
+	context={
+		'name':name,'email':email,'total':total,
+	}
+
 
 	if request.user.is_authenticated:
 		customer = request.user.customer
 		order, created = Order.objects.get_or_create(customer=customer, complete=False)
 	else:
-		customer, order = guestOrder(request, data)
+		customer, order = guestOrder(request, name,email)
 
-	total = float(data['form']['total'])
 	order.transaction_id = transaction_id
 
 	if total == order.get_cart_total:
 		order.complete = True
-	order.save()
+		order.save()
+		print("inside total condition")
+		if order.shipping == True:
+			print("inside shipping condition")
+			ShippingAddress.objects.create(
+			customer=customer,
+			order=order,
+			address=address,
+			city=city,
+			state=state,
+			zipcode=zipcode,
+			)
 
-	if order.shipping == True:
-		ShippingAddress.objects.create(
-		customer=customer,
-		order=order,
-		address=data['shipping']['address'],
-		city=data['shipping']['city'],
-		state=data['shipping']['state'],
-		zipcode=data['shipping']['zipcode'],
-		)
+		context={
+			'name':name,
+			'email':email,
+			'total':total,
+			'transaction_id':transaction_id
+		}
+		return render(request, 'store/payment.html', context)
 
-	return JsonResponse('Payment completed..', safe=False)
+	else:
+		return HttpResponse('Payment failed')
+
+	
+
+	return render(request, 'store/home.html')
 
 

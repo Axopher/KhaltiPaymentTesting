@@ -9,7 +9,6 @@ urlpatterns = [
 	path('checkout/', views.checkout, name="checkout"),
 	path('update_item/', views.updateItem, name="update_item"),
 	path('send_api_request',views.make_post_request_to_khalti,name="send_api_request"),
-	path('payment-success-callback',views.payment_success_callback,name="payment-success"),
 	path('process_order/', views.processOrder, name="process_order"),
 
 ]

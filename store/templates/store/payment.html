@@ -1,9 +1,9 @@
 {% block content %}
-    'pidx': {{pidx}},
-	'amount': {{amount}},
-	'mobile': {{mobile}},
-	'purchase_order_id': {{purchase_order_id}},
-	'purchase_order_name': {{purchase_order_name}},
-	'transaction_id': {{transaction_id}},
-    <Script>submitFormData();</script>
+<script>
+    alert("Transaction completed successfully. Your transaction ID is {{ transaction_id }}.");
+    cart = {}
+				document.cookie ='cart=' + JSON.stringify(cart) + ";domain=;path=/"
+
+				window.location.href = "{% url 'store' %}"
+</script>
 {% endblock %}

@@ -11,6 +11,7 @@ from django.middleware import csrf
 from django.http import HttpResponseRedirect
 import requests
 import urllib
+from urllib.parse import urlparse, parse_qs
 
 def store(request):
 	data = cartData(request)
@@ -85,7 +86,7 @@ def make_post_request_to_khalti(request):
 				urllib.parse.quote(name), 
 				urllib.parse.quote(email), 
 				urllib.parse.quote(phone),
-				urllib.parse.quote(total)
+				urllib.parse.quote(total),
 			)
 		else:
 			return_url = "http://127.0.0.1:8000/process_order/?name={}&email={}&phone={}&total={}&address={}&city={}&state={}&zipcode={}&country={}".format(
@@ -101,6 +102,7 @@ def make_post_request_to_khalti(request):
 			)	
 	
 		data=cartData(request)
+		print(data)
 		product_details = [{"identity": str(item['product']['id']), "name": item['product']['name'], "total_price": (item['get_total']//1)*100, "quantity": item['quantity'], "unit_price": (item['product']['price']//1)*100} for item in data['items']]
 
 		
@@ -142,16 +144,22 @@ def make_post_request_to_khalti(request):
 		}
 
 		response = requests.post(url, json=payload, headers=headers)
-		payment_url = response.json()['payment_url']
 		
-		return HttpResponseRedirect(payment_url)
+		if("payment_url" in response.json()):
+			payment_url = response.json()['payment_url']
+			return HttpResponseRedirect(payment_url)
+		else:
+			return render(request, 'store/error.html', {'message': 'Invalid Token'})
+
+			
+		
+		
 
 	return HttpResponse("Payment Failed")
 
 	
 
 def processOrder(request):
-	print("here")
 	name = request.GET.get('name')
 	email = request.GET.get('email')
 	phone = request.GET.get('phone')
@@ -159,14 +167,55 @@ def processOrder(request):
 	city = request.GET.get('city')
 	state = request.GET.get('state')
 	zipcode = request.GET.get('zipcode')
-	country = request.GET.get('country')
-	total = float(request.GET.get('total'))
 	transaction_id = request.GET.get('transaction_id')
 
-	context={
-		'name':name,'email':email,'total':total,
-	}
 
+	query_string = request.GET.get('country')		
+
+	if(query_string):
+		# Extract country and pidx
+		country = query_string.split('?')[0]
+		pidx=query_string.split('?')[1]
+		pidx = pidx.split('=')[1]
+		total = float(request.GET.get('total'))	
+	else:
+		total = request.GET.get('total')
+		pidx= total.split('?')[1]
+		pidx = pidx.split('=')[1]
+		total = float(total.split('?')[0])
+
+
+
+	# payment verification look up
+	csrf_token = csrf.get_token(request)
+	url = "https://a.khalti.com/api/v2/epayment/lookup/"
+	request_data = {
+		'pidx':pidx,
+	}
+	headers = {
+			'Content-Type': 'application/json',
+			"Authorization": "key 84a068d414ff4a189e1dbae85a09c9a3",
+			'X-CSRFToken': csrf_token,  
+	}
+	response = requests.post(url, json=request_data,headers=headers)
+	response=response.json()
+
+	if response.get('status_code') == 401:
+		# Invalid Authorization key
+		return render(request, 'store/error.html', {'message': 'Invalid Authorization key'})
+
+	if response.get('error_key') == 'validation_error':
+		# Invalid payment_id
+		return render(request, 'store/error.html', {'message': 'Invalid payment_id'})
+
+
+	context={
+			'name':name,
+			'email':email,
+			'total':total,
+			'transaction_id':transaction_id,
+			'response':response,
+	}
 
 	if request.user.is_authenticated:
 		customer = request.user.customer
@@ -191,16 +240,11 @@ def processOrder(request):
 			zipcode=zipcode,
 			)
 
-		context={
-			'name':name,
-			'email':email,
-			'total':total,
-			'transaction_id':transaction_id
-		}
-		return render(request, 'store/payment.html', context)
+		
+		return render(request, 'store/payment_status.html', context)
 
 	else:
-		return HttpResponse('Payment failed')
+		return render(request, 'store/payment_status.html', context)
 
 	
 

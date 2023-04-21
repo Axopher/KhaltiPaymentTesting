@@ -1,0 +1,20 @@
+{% block content %}
+<script>
+    {% if response.status == "Completed" %}
+    alert("Payment successful! Your transaction ID is {{ response.transaction_id }}.");
+    cart = {}
+				document.cookie ='cart=' + JSON.stringify(cart) + ";domain=;path=/"
+				window.location.href = "{% url 'store' %}"
+    {% elif response.status == "Pending" %}
+    alert("Your payment is pending. Please wait for it to be completed.");
+    window.location.href = "{% url 'store' %}"
+    {% elif response.status == "Refunded" %}
+    alert("Your payment has been refunded.");
+    window.location.href = "{% url 'checkout' %}"
+    {% elif response.status == "Expired" %}
+    alert("Your payment has expired.");
+    window.location.href = "{% url 'store' %}"
+    {% endif %}
+
+</script>
+{% endblock %}

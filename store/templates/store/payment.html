@@ -1,9 +1,0 @@
-{% block content %}
-<script>
-    alert("Transaction completed successfully. Your transaction ID is {{ transaction_id }}.");
-    cart = {}
-				document.cookie ='cart=' + JSON.stringify(cart) + ";domain=;path=/"
-
-				window.location.href = "{% url 'store' %}"
-</script>
-{% endblock %}

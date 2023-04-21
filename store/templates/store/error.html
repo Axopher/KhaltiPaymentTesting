@@ -1,5 +1,11 @@
 {% block content %}
-
-    {{message}}
-
+    {% for key,value in messages.items %}
+    {% if key == "error_key" %}
+        <p>{{ key }}: {{ value }}</p>
+    {%elif key == "detail" %}
+        <p>{{ key }}: {{ value }}</p>
+    {% else %}
+        <p>{{ key }}: {{ value|join:", " }}</p>
+    {% endif %}
+    {% endfor %}
 {% endblock %}

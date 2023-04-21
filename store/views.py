@@ -139,7 +139,7 @@ def make_post_request_to_khalti(request):
 
 		headers = {
 			'Content-Type': 'application/json',
-			"Authorization": "key 84a068d414ff4a189e1dbae85a09c9a3",
+			"Authorization": "key 184a068d414ff4a189e1dbae85a09c9a3",
 			'X-CSRFToken': csrf_token,  
 		}
 
@@ -149,9 +149,9 @@ def make_post_request_to_khalti(request):
 			payment_url = response.json()['payment_url']
 			return HttpResponseRedirect(payment_url)
 		elif("error_key" in response.json()):
-			return render(request, 'store/error.html', {'message': response.json()})	
+			return render(request, 'store/error.html', {'messages': response.json()})	
 		else:
-			return render(request, 'store/error.html', {'message': response.json()})
+			return render(request, 'store/error.html', {'messages': response.json()})
 
 			
 		

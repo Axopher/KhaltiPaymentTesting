@@ -144,12 +144,14 @@ def make_post_request_to_khalti(request):
 		}
 
 		response = requests.post(url, json=payload, headers=headers)
-		
+		print(response.json())
 		if("payment_url" in response.json()):
 			payment_url = response.json()['payment_url']
 			return HttpResponseRedirect(payment_url)
+		elif("error_key" in response.json()):
+			return render(request, 'store/error.html', {'message': response.json()})	
 		else:
-			return render(request, 'store/error.html', {'message': 'Invalid Token'})
+			return render(request, 'store/error.html', {'message': response.json()})
 
 			
 		

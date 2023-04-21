@@ -139,7 +139,7 @@ def make_post_request_to_khalti(request):
 
 		headers = {
 			'Content-Type': 'application/json',
-			"Authorization": "key 184a068d414ff4a189e1dbae85a09c9a3",
+			"Authorization": "key 84a068d414ff4a189e1dbae85a09c9a3",
 			'X-CSRFToken': csrf_token,  
 		}
 
